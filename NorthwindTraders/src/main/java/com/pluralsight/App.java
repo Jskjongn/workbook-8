@@ -9,6 +9,7 @@ public class App {
 
     public static void main(String[] args) {
 
+        // asks for password
         System.out.print("Username: root\nPassword: ");
         String password = userInput.nextLine();
 
@@ -41,6 +42,7 @@ public class App {
 
         // table header
         System.out.print("""
+             
              ID      Name                               Price   Stock
              ---     --------------------------         ------  ------
              """);
@@ -54,7 +56,10 @@ public class App {
                     results.getDouble("UnitPrice"),
                     results.getInt("UnitsInStock"));
         }
+
         // 3. Close the connection
+        results.close();
+        preparedStatement.close();
         connection.close();
 
         } catch (SQLException e) {
