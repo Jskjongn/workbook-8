@@ -6,19 +6,19 @@ import java.util.Scanner;
 public class App {
 
     static Scanner userInput = new Scanner(System.in);
-    static Connection connection = null;
+    //static Connection connection = null;
 
     public static void main(String[] args) {
 
         // establishes the connection for database
-        connection = getConnection();
+        try ( Connection connection = getConnection()) {
 
-        // displays home screen
-        boolean homeScreen = true;
-        while (homeScreen) {
+            // displays home screen
+            boolean homeScreen = true;
+            while (homeScreen) {
 
-            // displays user options
-            System.out.print("""
+                // displays user options
+                System.out.print("""
                     
                     What do you want to do?
                         1) Display all products
@@ -26,27 +26,29 @@ public class App {
                         3) Display all categories
                         0) Exit
                     """);
-            System.out.print("Select an option: ");
+                System.out.print("Select an option: ");
 
-            // stores user option for switch
-            int option = userInput.nextInt();
-            switch (option) {
-                case 1:
-                    displayProducts();
-                    continue;
-                case 2:
-                    displayCustomers();
-                    break;
-                case 3:
-                    displayCategories();
-                    break;
-                case 0:
-                    closeConnection();
-                    homeScreen = false;
-                    break;
-                default:
-                    System.out.println("Please choose either 1-2 or 0 to exit!");
+                // stores user option for switch
+                int option = userInput.nextInt();
+                switch (option) {
+                    case 1:
+                        displayProducts(connection);
+                        continue;
+                    case 2:
+                        displayCustomers(connection);
+                        break;
+                    case 3:
+                        displayCategories(connection);
+                        break;
+                    case 0:
+                        homeScreen = false;
+                        break;
+                    default:
+                        System.out.println("Please choose either 1-2 or 0 to exit!");
+                }
             }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -69,21 +71,8 @@ public class App {
         }
     }
 
-    // closes the connection to database
-    public static void closeConnection() {
-
-        // closes the connection to database if not null
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (SQLException e) {
-                System.out.println("Error with closing connection: " + e.getMessage());
-            }
-        }
-    }
-
     // displays all products from products table
-    public static void displayProducts() {
+    public static void displayProducts(Connection connection) {
 
         try (
                 // creates prepared statement with the connection and writes the query
@@ -126,7 +115,7 @@ public class App {
     }
 
     // displays all customers
-    public static void displayCustomers() {
+    public static void displayCustomers(Connection connection) {
 
         try (
                 // creates prepared statement with the connection and writes the query
@@ -172,7 +161,7 @@ public class App {
     }
 
     // displays all categories
-    public static void displayCategories() {
+    public static void displayCategories(Connection connection) {
 
         // eats leftover
         userInput.nextLine();
@@ -212,7 +201,7 @@ public class App {
         // if yes then calls method, if no breaks to home screen
         while (true) {
             if (choice.equals("yes") || choice.equals("y")) {
-                displayProductByCategory();
+                displayProductByCategory(connection);
                 break;
             } else if (choice.equals("no") || choice.equals("n")) {
                 break;
@@ -224,7 +213,7 @@ public class App {
     }
 
     // displays products depending on category ID number
-    public static void displayProductByCategory() {
+    public static void displayProductByCategory(Connection connection) {
 
         // asks user for id
         System.out.print("Enter Category ID to search: ");
