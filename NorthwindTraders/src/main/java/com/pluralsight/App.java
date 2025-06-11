@@ -1,24 +1,25 @@
 package com.pluralsight;
 
+import org.apache.commons.dbcp2.BasicDataSource;
+
 import java.sql.*;
 import java.util.Scanner;
 
 public class App {
 
     static Scanner userInput = new Scanner(System.in);
-    //static Connection connection = null;
 
     public static void main(String[] args) {
 
         // establishes the connection for database
-        try ( Connection connection = getConnection()) {
+        Connection connection = getConnection();
 
-            // displays home screen
-            boolean homeScreen = true;
-            while (homeScreen) {
+        // displays home screen
+        boolean homeScreen = true;
+        while (homeScreen) {
 
-                // displays user options
-                System.out.print("""
+            // displays user options
+            System.out.print("""
                     
                     What do you want to do?
                         1) Display all products
@@ -26,29 +27,26 @@ public class App {
                         3) Display all categories
                         0) Exit
                     """);
-                System.out.print("Select an option: ");
+            System.out.print("Select an option: ");
 
-                // stores user option for switch
-                int option = userInput.nextInt();
-                switch (option) {
-                    case 1:
-                        displayProducts(connection);
-                        continue;
-                    case 2:
-                        displayCustomers(connection);
-                        break;
-                    case 3:
-                        displayCategories(connection);
-                        break;
-                    case 0:
-                        homeScreen = false;
-                        break;
-                    default:
-                        System.out.println("Please choose either 1-2 or 0 to exit!");
-                }
+            // stores user option for switch
+            int option = userInput.nextInt();
+            switch (option) {
+                case 1:
+                    displayProducts(connection);
+                    continue;
+                case 2:
+                    displayCustomers(connection);
+                    break;
+                case 3:
+                    displayCategories(connection);
+                    break;
+                case 0:
+                    homeScreen = false;
+                    break;
+                default:
+                    System.out.println("Please choose either 1-3 or 0 to exit!");
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -59,12 +57,16 @@ public class App {
         System.out.print("Username: root\nPassword: ");
         String password = userInput.nextLine();
 
-        try {
+        // creates datasource
+        try (BasicDataSource dataSource = new BasicDataSource()) {
+
             // creates connection to database using url and password
-            return DriverManager.getConnection(
-                    "jdbc:mysql://localhost:3306/northwind",
-                    "root",
-                    password);
+            dataSource.setUrl("jdbc:mysql://localhost:3306/northwind");
+            dataSource.setUsername("root");
+            dataSource.setPassword(password);
+
+            return dataSource.getConnection();
+
         } catch (SQLException e) {
             System.out.println("Error with opening connection: " + e.getMessage());
             return null;
@@ -76,7 +78,7 @@ public class App {
 
         try (
                 // creates prepared statement with the connection and writes the query
-                PreparedStatement preparedStatement1 = connection.prepareStatement(
+                PreparedStatement preparedStatement = connection.prepareStatement(
                         """
                                 SELECT
                                     ProductID
@@ -89,8 +91,7 @@ public class App {
                 );
 
                 // takes prepared statement with query to execute
-                ResultSet resultSet1 = preparedStatement1.executeQuery();
-
+                ResultSet results = preparedStatement.executeQuery();
         ) {
             // table header
             System.out.print("""
@@ -100,13 +101,13 @@ public class App {
                     """);
 
             // displays the query executed
-            while (resultSet1.next()) {
+            while (results.next()) {
                 // left aligned by however many spaces to align with table header above
                 System.out.printf("%-7d %-34s %-7.2f %-6d\n",
-                        resultSet1.getInt("ProductID"),
-                        resultSet1.getString("ProductName"),
-                        resultSet1.getDouble("UnitPrice"),
-                        resultSet1.getInt("UnitsInStock"));
+                        results.getInt("ProductID"),
+                        results.getString("ProductName"),
+                        results.getDouble("UnitPrice"),
+                        results.getInt("UnitsInStock"));
             }
 
         } catch (SQLException e) {
@@ -119,7 +120,7 @@ public class App {
 
         try (
                 // creates prepared statement with the connection and writes the query
-                PreparedStatement preparedStatement1 = connection.prepareStatement(
+                PreparedStatement preparedStatement = connection.prepareStatement(
                         """
                                 SELECT
                                     ContactName
@@ -136,10 +137,10 @@ public class App {
                                 """
                 );
                 // executes the query from the prepared statement
-                ResultSet resultSet1 = preparedStatement1.executeQuery();
+                ResultSet results = preparedStatement.executeQuery();
         ) {
             // displays query results from column names
-            while (resultSet1.next()) {
+            while (results.next()) {
                 System.out.printf("""
                                 
                                 Contact Name: %s
@@ -148,11 +149,11 @@ public class App {
                                 Country:      %s
                                 Phone:        %s
                                 """,
-                        resultSet1.getString("ContactName"),
-                        resultSet1.getString("CompanyName"),
-                        resultSet1.getString("City"),
-                        resultSet1.getString("Country"),
-                        resultSet1.getString("Phone"));
+                        results.getString("ContactName"),
+                        results.getString("CompanyName"),
+                        results.getString("City"),
+                        results.getString("Country"),
+                        results.getString("Phone"));
             }
 
         } catch (SQLException e) {
@@ -168,7 +169,7 @@ public class App {
 
         try (
                 // creates prepared statement and query for category table
-                PreparedStatement preparedStatement1 = connection.prepareStatement("""
+                PreparedStatement preparedStatement = connection.prepareStatement("""
                         SELECT
                             CategoryID
                             , CategoryName
@@ -179,7 +180,7 @@ public class App {
                         """);
 
                 // executes query and gets the result set
-                ResultSet results = preparedStatement1.executeQuery()
+                ResultSet results = preparedStatement.executeQuery()
         ) {
             // displays the result set
             while (results.next()) {
@@ -221,7 +222,7 @@ public class App {
 
         try (
                 // creates query with a parameter to for matching category id
-                PreparedStatement preparedStatement2 = connection.prepareStatement("""
+                PreparedStatement preparedStatement = connection.prepareStatement("""
                         SELECT
                             P.ProductID
                             , P.ProductName
@@ -236,10 +237,10 @@ public class App {
                         """);
         ) {
             // replaces first parameter with user input
-            preparedStatement2.setInt(1, search);
+            preparedStatement.setInt(1, search);
 
             // executes query and gets result set
-            try (ResultSet results2 = preparedStatement2.executeQuery()) {
+            try (ResultSet results = preparedStatement.executeQuery()) {
                 // table header
                 System.out.print("""
                         
@@ -248,14 +249,14 @@ public class App {
                         """);
 
                 // displays the query executed
-                while (results2.next()) {
+                while (results.next()) {
                     // left aligned by however many spaces to align with table header above
-                    System.out.printf("%-7d %-34s %-7.2f %-6d %-8d\n",
-                            results2.getInt("ProductID"),
-                            results2.getString("ProductName"),
-                            results2.getDouble("UnitPrice"),
-                            results2.getInt("UnitsInStock"),
-                            results2.getInt("CategoryID"));
+                    System.out.printf("%-7d %-34s %-7.2f %-8d %-8d\n",
+                            results.getInt("ProductID"),
+                            results.getString("ProductName"),
+                            results.getDouble("UnitPrice"),
+                            results.getInt("UnitsInStock"),
+                            results.getInt("CategoryID"));
                 }
             }
         } catch (SQLException e) {
