@@ -6,6 +6,7 @@ import com.pluralsight.models.Actor;
 import com.pluralsight.models.Film;
 import org.apache.commons.dbcp2.BasicDataSource;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Scanner;
 
@@ -18,17 +19,8 @@ public class App {
 
     public static void main(String[] args) {
 
-        // prompts user for password to database
-        System.out.print("Username: root\nPassword: ");
-        String password = userInput.nextLine().trim();
-
-        // creates the datasource
-        dataSource = new BasicDataSource();
-
-        // sets url with username and password
-        dataSource.setUrl("jdbc:mysql://localhost:3306/sakila");
-        dataSource.setUsername("root");
-        dataSource.setPassword(password);
+        // creates datasource
+        openDataSource();
 
         // creates data managers
         actorDataManager = new ActorDao(dataSource);
@@ -60,12 +52,14 @@ public class App {
                     displayFilm();
                     break;
                 case 0:
+                    closeDataSource();
                     homeScreen = false;
                     break;
                 default:
                     System.out.println("Please enter either 1-2 or 0 to exit!");
             }
         }
+
     }
 
     // displays names of actors with a certain last name
@@ -110,7 +104,32 @@ public class App {
                     Description: %s
                     Release Year: %d
                     Length: %d
-                    """, film.getFilmID(), film.getTitle(), film.getDescription(), film.getReleaseYear(), film.getLength());
+                    Actor: %s
+                    """, film.getFilmID(), film.getTitle(), film.getDescription(), film.getReleaseYear(), film.getLength(), film.getName());
+        }
+    }
+
+    // creates datasource and connects to database
+    public static void openDataSource() {
+        // prompts user for password to database
+        System.out.print("Username: root\nPassword: ");
+        String password = userInput.nextLine().trim();
+
+        // creates the datasource
+        dataSource = new BasicDataSource();
+
+        // sets url with username and password
+        dataSource.setUrl("jdbc:mysql://localhost:3306/sakila");
+        dataSource.setUsername("root");
+        dataSource.setPassword(password);
+    }
+
+    // closes datasource
+    public static void closeDataSource() {
+        try {
+            dataSource.close();
+        } catch (SQLException e) {
+            System.out.println("Error closing connection: " + e.getMessage());
         }
     }
 }

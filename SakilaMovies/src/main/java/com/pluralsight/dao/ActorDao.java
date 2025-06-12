@@ -12,18 +12,22 @@ import java.util.List;
 
 public class ActorDao {
 
+    // property
     private BasicDataSource actorDataSource;
 
+    // constructor
     public ActorDao(BasicDataSource actorDataSource) {
         this.actorDataSource = actorDataSource;
     }
 
+    // gets a list of actors by their last name
     public List<Actor> getActorByLastName(String lastName) {
 
         // creates a list of actors with a certain last name
         List<Actor> actors = new ArrayList<>();
 
         try (
+                // creates connection to datasource which is connected to the database
                 Connection connection = actorDataSource.getConnection();
                 // connects statement to database and creates query
                 PreparedStatement preparedStatement = connection.prepareStatement("""
@@ -45,10 +49,15 @@ public class ActorDao {
 
                 // displays values from column names
                 while (resultSet.next()) {
+                    // gets results and stores them
                     int actorID = resultSet.getInt("actor_id");
                     String actorFirstName = resultSet.getString("first_name");
                     String actorLastName = resultSet.getString("last_name");
+
+                    // add the results from each column into a new actor object
                     Actor actor = new Actor(actorID, actorFirstName, actorLastName);
+
+                    // adds new actor object to actors list
                     actors.add(actor);
                 }
             }
