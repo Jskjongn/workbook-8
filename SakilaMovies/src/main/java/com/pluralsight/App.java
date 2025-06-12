@@ -1,21 +1,38 @@
 package com.pluralsight;
 
+import com.pluralsight.dao.ActorDao;
+import com.pluralsight.dao.FilmDao;
+import com.pluralsight.models.Actor;
+import com.pluralsight.models.Film;
 import org.apache.commons.dbcp2.BasicDataSource;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.List;
 import java.util.Scanner;
 
 public class App {
 
     static Scanner userInput = new Scanner(System.in);
+    static BasicDataSource dataSource = null;
+    static ActorDao actorDataManager = null;
+    static FilmDao filmDataManager = null;
 
     public static void main(String[] args) {
 
-        // creates the connection to pass into methods
-        Connection connection = getConnection();
+        // prompts user for password to database
+        System.out.print("Username: root\nPassword: ");
+        String password = userInput.nextLine().trim();
+
+        // creates the datasource
+        dataSource = new BasicDataSource();
+
+        // sets url with username and password
+        dataSource.setUrl("jdbc:mysql://localhost:3306/sakila");
+        dataSource.setUsername("root");
+        dataSource.setPassword(password);
+
+        // creates data managers
+        actorDataManager = new ActorDao(dataSource);
+        filmDataManager = new FilmDao(dataSource);
 
         System.out.println("\nWelcome to Sakila Movies!");
 
@@ -26,8 +43,8 @@ public class App {
             System.out.print("""
                 
                 What would you like to do?
-                1) Search by actor last name
-                2) Search by actor first and last name
+                1) Search actor by last name
+                2) Search film by actor first and last name
                 0) Exit
                 """);
             System.out.print("Select an option: ");
@@ -37,10 +54,10 @@ public class App {
 
             switch (option) {
                 case 1:
-                    displayLastName(connection);
+                    displayActorName();
                     break;
                 case 2:
-                    displayFirstAndLastName(connection);
+                    displayFilm();
                     break;
                 case 0:
                     homeScreen = false;
@@ -51,73 +68,29 @@ public class App {
         }
     }
 
-    // creates connection to database
-    public static Connection getConnection() {
-
-        // prompts user for password to database
-        System.out.print("Username: root\nPassword: ");
-        String password = userInput.nextLine().trim();
-
-        // creates the datasource and sets the url with user and password
-        try (BasicDataSource dataSource = new BasicDataSource()) {
-
-            dataSource.setUrl("jdbc:mysql://localhost:3306/sakila");
-            dataSource.setUsername("root");
-            dataSource.setPassword(password);
-
-            // returns the connection
-            return dataSource.getConnection();
-
-        } catch (SQLException e) {
-            System.out.println("Error with opening connection: " + e.getMessage());
-            return null;
-        }
-    }
-
     // displays names of actors with a certain last name
-    private static void displayLastName(Connection connection) {
+    private static void displayActorName() {
 
         // prompts for last name
         System.out.print("\nEnter last name of actor: ");
         String lastName = userInput.nextLine().trim();
 
-        try (
-                // connects statement to database and creates query
-                PreparedStatement preparedStatement = connection.prepareStatement("""
-                        SELECT
-                            actor_id
-                            , CONCAT(first_name, ' ', last_name) AS 'Full Name'
-                        FROM
-                            actor
-                        WHERE
-                            last_name LIKE ?
-                        """)
-        ) {
-            // sets the parameter in the query to use user input
-            preparedStatement.setString(1, "%" + lastName + "%");
+        // takes the list from data manager and stores in new list
+        List<Actor> actors = actorDataManager.getActorByLastName(lastName);
 
-            // executes the query and puts results into result set
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                // table header
-                System.out.print("""
-                        
-                        ID      Actor Name
-                        ---     --------------------------
-                        """);
-                // displays values from column names
-                while (resultSet.next()) {
-                    System.out.printf("%-7d %s\n",
-                            resultSet.getInt("actor_id"),
-                            resultSet.getString("Full Name"));
-                }
-            }
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
+        // loops through each actor in list to display actor details
+        for (Actor actor : actors) {
+            System.out.printf("""
+                    
+                    Actor ID: %d
+                    First Name: %s
+                    Last Name: %s
+                    """, actor.getActorID(), actor.getFirstName(), actor.getLastName());
         }
     }
 
-    // displays movie titles by first and last name of actor
-    private static void displayFirstAndLastName(Connection connection) {
+    // searches movie title by first and last name of actor
+    private static void displayFilm() {
 
         // prompts for first and last name
         System.out.print("\nEnter first name of actor: ");
@@ -125,52 +98,19 @@ public class App {
         System.out.print("Enter last name of actor: ");
         String lastName = userInput.nextLine().trim();
 
-        try (
-                // connects statement to database and creates query
-                PreparedStatement preparedStatement = connection.prepareStatement("""
-                        SELECT
-                            CONCAT(A.first_name, ' ', A.last_name) AS 'Full Name'
-                            , F.title
-                        FROM
-                            actor A
-                            JOIN film_actor FM ON (A.actor_id = FM.actor_id)
-                            JOIN film F ON (FM.film_id = F.film_id)
-                        WHERE
-                            first_name LIKE ? AND last_name LIKE ?
-                        """)
-        ) {
-            // sets the two parameters of first and last name
-            preparedStatement.setString(1, "%" + firstName + "%");
-            preparedStatement.setString(2, "%" + lastName + "%");
+        // takes the list from data manager and stores in new list
+        List<Film> films = filmDataManager.getFilmByActorName(firstName, lastName);
 
-            // puts the executed query into the result sets
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
-
-                // if there is a match of first and last name then displays movie titles
-                if (resultSet.next()) {
-                    System.out.println("\nMatches of movies with: " + firstName + " " + lastName);
-
-                    // table header
-                    System.out.print("""
-                        
-                        Actor Name                      Movie Title
-                        --------------------------      ----------------------------
-                        """);
-
-                    // displays values from columns if while is still true
-                    do {
-                        System.out.printf("%-31s %s\n",
-                                resultSet.getString("Full Name"),
-                                resultSet.getString("title"));
-                    } while (resultSet.next());
-                    // if no match from first and last name then displays no match
-                } else {
-                    System.out.println("No matches of movies with: " + firstName + " " + lastName);
-                }
-            }
-
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
+        // loops through each film in list to display film details
+        for (Film film : films) {
+            System.out.printf("""
+                    
+                    Film ID: %d
+                    Title: %s
+                    Description: %s
+                    Release Year: %d
+                    Length: %d
+                    """, film.getFilmID(), film.getTitle(), film.getDescription(), film.getReleaseYear(), film.getLength());
         }
     }
 }
